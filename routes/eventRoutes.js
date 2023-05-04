@@ -5,7 +5,6 @@ const {
   inviteUser,
   updateEvent,
 } = require('../controllers/eventControllers');
-const { update } = require('../models/eventmodel');
 
 router.post('/event', createEvent);
 router.post('/invite', inviteUser);

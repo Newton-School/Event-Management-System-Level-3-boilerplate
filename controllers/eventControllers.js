@@ -9,7 +9,6 @@ const createEvent = async (req, res) => {
   try {
     //write your code here for creating a event
   } catch (err) {
-    console.error(err);
     res.status(500).send('Server Error');
   }
 };
@@ -19,7 +18,6 @@ const inviteUser = async (req, res) => {
   try {
     //Write a code here for inviting a user to a event
   } catch (err) {
-    console.error(err);
     res.status(500).send('Server Error');
   }
 };
@@ -28,7 +26,6 @@ const updateEvent = async (req, res) => {
   try {
     //write a code here for updating the event
   } catch (err) {
-    console.error(err);
     res.status(500).send('Server Error');
   }
 };

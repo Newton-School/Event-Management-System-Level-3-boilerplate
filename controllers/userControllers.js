@@ -1,103 +1,81 @@
-const users = require('../models/usermodel');
+const User = require('../models/userModel');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const dotenv = require('dotenv');
 
 //Registering user into database
 const registerUser = async (req, res) => {
   try {
-    const password = req.body.password;
-    const cpassword = req.body.confirmpassword;
-    const salt = await bcrypt.genSalt(10);
-    const hashedPass = await bcrypt.hash(req.body.password, salt);
+    const { name, email, password, confirmpassword } = req.body;
 
-    if (password === cpassword) {
-      const newUser = new users({
-        name: req.body.name,
-        password: hashedPass,
-        email: req.body.email,
-        confirmpassword: req.body.confirmpassword,
-      });
-      const user = await newUser.save();
-
-      res.status(200).send(user);
-    } else {
-      res.status(404).send('Incorrect Data');
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({ message: 'User already exists' });
     }
+
+    if (password !== confirmpassword) {
+      return res.status(400).json({ message: 'Passwords do not match' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newUser = new User({
+      name,
+      email,
+      password: hashedPassword,
+      confirmpassword: confirmpassword,
+    });
+    delete newUser.confirmpassword; // remove it before saving
+    const user = await newUser.save();
+    res.status(201).json(user);
   } catch (error) {
-    res.status(404).send(error);
+    res.status(500).json({ message: 'Something went wrong' });
   }
 };
-
 //Checking if the user exists
 const loginUser = async (req, res) => {
   try {
-    const email = req.body.email;
-    const password = req.body.password;
+    const { email, password } = req.body;
 
-    const useremail = await users.findOne({
-      email: email,
-    });
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
 
-    //comparing our hash with password
-    const isMatch = await bcrypt.compare(password, useremail.password);
+    //Generating Token
+    const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET);
 
-    //Geerating Token
-    const token = jwt.sign({ _id: useremail._id }, process.env.JWT_SECRET);
-    // res.status(200).json(token);
+    const isMatch = await bcrypt.compare(password, user.password);
     if (isMatch) {
-      res.send('Successful Login' + token);
+      res.status(200).json({ message: 'Successful login' });
     } else {
-      res.send('Error Details Incorrect');
+      res.status(401).json({ message: 'Invalid credentials' });
     }
   } catch (error) {
-    res.status(404).send(error);
+    res.status(500).json({ message: 'Something went wrong' });
   }
 };
 
-// Logout User
-const logoutUser = async (req, res) => {
+const updatePassword = async (req, res) => {
   try {
-    const user = await users.findById(req.params.id);
-
-    if (user.email === req.body.email) {
-      try {
-        await user.delete();
-        res.status(201).json('User Deleted');
-      } catch (error) {
-        res.status(500).json(error);
-      }
-    } else {
-      res.status(500).send('Error deleting User');
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).send('User not found');
     }
+    const email = req.body.email;
+    if (user.email !== email) {
+      return res.status(400).send('Invalid email');
+    }
+    const salt = await bcrypt.genSalt(10);
+    const hashedPass = await bcrypt.hash(req.body.password, salt);
+    const updatedPassword = await User.findByIdAndUpdate(
+      req.params.id,
+      { password: hashedPass },
+      { new: true }
+    );
+    res.status(200).json(updatedPassword);
   } catch (error) {
-    res.status(404).json(error);
+    res.status(500).json({ message: 'Something went wrong' });
   }
 };
 
-//Updating Password
-const updatePasword = async (req, res) => {
-  try {
-    const User = await users.findById(req.params.id);
-    if (User.email === req.body.email) {
-      try {
-        const updatedPassword = await users.findByIdAndUpdate(
-          req.params.id,
-          {
-            $set: { password: req.body.password },
-          },
-          { new: true }
-        );
-        res.status(201).send(updatedPassword);
-      } catch (error) {
-        res.status(404).json(error);
-      }
-    } else {
-      res.status(404).send('Email not valid');
-    }
-  } catch (error) {
-    res.status(404).json(error);
-  }
-};
-
-module.exports = { registerUser, loginUser, logoutUser, updatePasword };
+module.exports = { registerUser, loginUser, updatePassword };
