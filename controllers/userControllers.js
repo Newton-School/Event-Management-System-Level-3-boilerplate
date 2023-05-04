@@ -46,7 +46,7 @@ const loginUser = async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (isMatch) {
-      res.status(200).json({ message: 'Successful login' });
+      res.status(200).json({ message: 'Successful login', token });
     } else {
       res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -59,11 +59,11 @@ const updatePassword = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
-      return res.status(404).send('User not found');
+      return res.status(404).json({ message: 'User not found' });
     }
     const email = req.body.email;
     if (user.email !== email) {
-      return res.status(400).send('Invalid email');
+      return res.status(400).json({ message: 'Invalid email' });
     }
     const salt = await bcrypt.genSalt(10);
     const hashedPass = await bcrypt.hash(req.body.password, salt);
